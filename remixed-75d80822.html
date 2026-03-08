@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pilot Uçuş Takvimi</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky: #0a1628; --deep: #060d1a; --horizon: #1a2d4d;
+    --work: #e84545; --work-soft: rgba(232,69,69,0.15);
+    --rest: #00c896; --rest-soft: rgba(0,200,150,0.13);
+    --gold: #f0b429; --text: #e8ecf4; --muted: #7a8ba3;
+    --border: rgba(255,255,255,0.07); --card: rgba(255,255,255,0.04);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--deep); color: var(--text); font-family: 'Syne', sans-serif; min-height: 100vh; overflow-x: hidden; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(41,98,163,0.25) 0%, transparent 70%),
+                radial-gradient(ellipse 60% 40% at 80% 100%, rgba(0,200,150,0.06) 0%, transparent 60%);
+    pointer-events: none; z-index: 0;
+  }
+  .stars { position: fixed; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
+  .star { position: absolute; background: white; border-radius: 50%; animation: twinkle var(--dur) ease-in-out infinite alternate; }
+  @keyframes twinkle { from { opacity: 0.1; } to { opacity: 0.8; } }
+
+  .container { position: relative; z-index: 1; max-width: 1300px; margin: 0 auto; padding: 0 24px 60px; }
+
+  header {
+    padding: 48px 0 32px; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;
+    border-bottom: 1px solid var(--border); margin-bottom: 32px; flex-wrap: wrap;
+  }
+  .header-left h1 { font-family: 'Space Mono', monospace; font-size: clamp(22px,4vw,38px); letter-spacing: -1px; line-height: 1.1; color: #fff; }
+  .header-left h1 span { color: var(--gold); }
+  .header-left p { margin-top: 8px; color: var(--muted); font-size: 13px; letter-spacing: 1px; text-transform: uppercase; }
+  .stats-bar { display: flex; gap: 20px; flex-wrap: wrap; }
+  .stat-chip { display: flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; font-family: 'Space Mono', monospace; }
+  .stat-chip .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .stat-chip .num { font-size: 20px; font-weight: 700; }
+  .stat-chip .lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+  .controls { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px 28px; margin-bottom: 36px; }
+  .controls h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 20px; }
+  .control-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+  .control-group { display: flex; flex-direction: column; gap: 6px; }
+  .control-group label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .control-group input[type=number],
+  .control-group input[type=date],
+  .control-group select {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+    color: var(--text); font-family: 'Space Mono', monospace; font-size: 14px;
+    padding: 10px 14px; border-radius: 8px; outline: none; width: 160px; transition: border-color 0.2s;
+  }
+  .control-group input[type=date]::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer; }
+  .control-group input:focus, .control-group select:focus { border-color: var(--gold); }
+  .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; transition: all 0.2s; letter-spacing: 0.5px; }
+  .btn-primary { background: var(--gold); color: #0a0a0a; }
+  .btn-primary:hover { background: #ffc84a; transform: translateY(-1px); }
+  .btn-secondary { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--text); color: var(--text); }
+
+  .override-section { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 20px; }
+  .override-section h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 12px; }
+  .override-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+  .override-list { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .override-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-family: 'Space Mono', monospace; }
+  .override-tag.work { background: var(--work-soft); border: 1px solid rgba(232,69,69,0.3); color: var(--work); }
+  .override-tag.rest { background: var(--rest-soft); border: 1px solid rgba(0,200,150,0.3); color: var(--rest); }
+  .override-tag button { background: none; border: none; cursor: pointer; color: inherit; font-size: 14px; line-height: 1; padding: 0 2px; opacity: 0.6; }
+  .override-tag button:hover { opacity: 1; }
+
+  .calendar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+  .month-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+  .month-header { padding: 14px 18px 12px; display: flex; justify-content: space-between; align-items: center; background: var(--horizon); border-bottom: 1px solid var(--border); }
+  .month-name { font-size: 15px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+  .month-stats { display: flex; gap: 10px; font-family: 'Space Mono', monospace; font-size: 11px; }
+  .month-stats .w { color: var(--work); }
+  .month-stats .r { color: var(--rest); }
+  .cal-body { padding: 12px; }
+  .day-headers { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 6px; }
+  .day-hdr { text-align: center; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 4px 0; }
+  .day-hdr.weekend { color: rgba(240,180,41,0.5); }
+  .days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .day-cell { aspect-ratio: 1; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: default; position: relative; transition: transform 0.15s; font-family: 'Space Mono', monospace; }
+  .day-cell:not(.empty):hover { transform: scale(1.12); z-index: 2; cursor: pointer; }
+  .day-cell.empty { background: transparent; }
+  .day-cell .day-num { font-size: 12px; font-weight: 700; line-height: 1; }
+  .day-cell .day-icon { font-size: 9px; margin-top: 1px; opacity: 0.85; }
+  .day-cell.work { background: var(--work-soft); border: 1px solid rgba(232,69,69,0.25); color: #ff8a8a; }
+  .day-cell.work.weekend { background: rgba(232,69,69,0.22); border-color: rgba(232,69,69,0.4); }
+  .day-cell.rest { background: var(--rest-soft); border: 1px solid rgba(0,200,150,0.2); color: #00d4a3; }
+  .day-cell.rest.weekend { background: rgba(0,200,150,0.2); border-color: rgba(0,200,150,0.35); }
+  .day-cell.override { outline: 2px solid var(--gold); outline-offset: -2px; }
+  .day-cell:hover::after {
+    content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    background: #1a2840; border: 1px solid rgba(255,255,255,0.15); color: var(--text); font-size: 10px;
+    white-space: nowrap; padding: 4px 8px; border-radius: 5px; pointer-events: none;
+    font-family: 'Space Mono', monospace; z-index: 10;
+  }
+
+  .legend { display: flex; gap: 16px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .legend-swatch { width: 24px; height: 18px; border-radius: 4px; }
+  .legend-swatch.work { background: var(--work-soft); border: 1px solid rgba(232,69,69,0.3); }
+  .legend-swatch.rest { background: var(--rest-soft); border: 1px solid rgba(0,200,150,0.25); }
+  .legend-swatch.override { background: transparent; border: 2px solid var(--gold); }
+
+  @media (max-width: 600px) { .calendar-grid { grid-template-columns: 1fr; } .control-row { flex-direction: column; } }
+</style>
+</head>
+<body>
+<div class="stars" id="stars"></div>
+<div class="container">
+  <header>
+    <div class="header-left">
+      <h1>✈ Pilot Uçuş<br><span id="headerYear">Takvimi</span></h1>
+      <p id="headerSub">Ocak — Aralık · 6+3 Döngüsü</p>
+    </div>
+    <div class="stats-bar">
+      <div class="stat-chip">
+        <div class="dot" style="background:var(--work)"></div>
+        <div><div class="num" id="totalWork">—</div><div class="lbl">Uçuş Günü</div></div>
+      </div>
+      <div class="stat-chip">
+        <div class="dot" style="background:var(--rest)"></div>
+        <div><div class="num" id="totalRest">—</div><div class="lbl">Dinlenme Günü</div></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="controls">
+    <h2>⚙ Takvim Ayarları</h2>
+    <div class="control-row">
+      <div class="control-group">
+        <label>Döngü Başlangıcı</label>
+        <input type="date" id="cycleStart" value="2026-01-01">
+      </div>
+      <div class="control-group">
+        <label>Takvim Yılı</label>
+        <input type="number" id="calYear" value="2026" min="1900" max="2100">
+      </div>
+      <div class="control-group">
+        <label>Uçuş Günü Sayısı</label>
+        <input type="number" id="workDays" value="6" min="1" max="30">
+      </div>
+      <div class="control-group">
+        <label>Dinlenme Günü Sayısı</label>
+        <input type="number" id="restDays" value="3" min="1" max="30">
+      </div>
+      <div class="control-group">
+        <label>Döngü Kaydırma (gün)</label>
+        <input type="number" id="offset" value="0" min="-365" max="365">
+      </div>
+      <button class="btn btn-primary" onclick="render()">Güncelle</button>
+      <button class="btn btn-secondary" onclick="resetAll()">Sıfırla</button>
+    </div>
+
+    <div class="override-section">
+      <h3>📌 Manuel Gün Düzenleme</h3>
+      <div class="override-row">
+        <div class="control-group">
+          <label>Tarih</label>
+          <input type="date" id="overrideDate">
+        </div>
+        <div class="control-group">
+          <label>Durum</label>
+          <select id="overrideType">
+            <option value="work">✈ Uçuş</option>
+            <option value="rest">✦ Dinlenme</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="addOverride()">Ekle</button>
+      </div>
+      <div class="override-list" id="overrideList"></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--muted)">Açıklama:</span>
+    <div class="legend-item"><div class="legend-swatch work"></div> Uçuş Günü</div>
+    <div class="legend-item"><div class="legend-swatch rest"></div> Dinlenme Günü</div>
+    <div class="legend-item"><div class="legend-swatch override"></div> Manuel Düzenleme</div>
+  </div>
+
+  <div class="calendar-grid" id="calendarGrid"></div>
+</div>
+
+<script>
+// Stars
+const starsEl = document.getElementById('stars');
+for (let i = 0; i < 120; i++) {
+  const s = document.createElement('div');
+  s.className = 'star';
+  const sz = Math.random() * 2 + 0.5;
+  s.style.cssText = `width:${sz}px;height:${sz}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--dur:${2+Math.random()*4}s;animation-delay:${Math.random()*4}s`;
+  starsEl.appendChild(s);
+}
+
+const MONTHS_TR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+const DAYS_TR = ['Pzt','Sal','Çar','Per','Cum','Cmt','Paz'];
+
+let overrides = {};
+
+// Parse yyyy-mm-dd string into local Date (avoids UTC timezone shift)
+function parseISO(str) {
+  const [y, m, d] = str.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+// Format Date -> dd/mm/yyyy for display
+function fmtDisplay(date) {
+  return `${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}`;
+}
+
+// Internal storage key: yyyy-mm-dd
+function dateKey(y, m, d) {
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
+function computeSchedule(year, cycleStartDate, workDays, restDays, offset) {
+  const cycle = workDays + restDays;
+  const adjusted = new Date(cycleStartDate);
+  adjusted.setDate(adjusted.getDate() - ((offset % cycle + cycle) % cycle));
+
+  const schedule = {};
+  for (let m = 1; m <= 12; m++) {
+    const daysInMonth = new Date(year, m, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = dateKey(year, m, d);
+      if (overrides[key]) {
+        schedule[key] = overrides[key];
+      } else {
+        const cur = new Date(year, m - 1, d);
+        const diff = Math.round((cur - adjusted) / 86400000);
+        const pos = ((diff % cycle) + cycle) % cycle;
+        schedule[key] = pos < workDays ? 'work' : 'rest';
+      }
+    }
+  }
+  return schedule;
+}
+
+function render() {
+  const cycleStartStr = document.getElementById('cycleStart').value;
+  if (!cycleStartStr) { alert('Lütfen döngü başlangıç tarihi seçin.'); return; }
+  const cycleStartDate = parseISO(cycleStartStr);
+
+  const year = parseInt(document.getElementById('calYear').value);
+  if (isNaN(year) || year < 1900 || year > 2100) { alert('Geçerli bir yıl girin (1900–2100)'); return; }
+
+  const workDays = parseInt(document.getElementById('workDays').value) || 6;
+  const restDays = parseInt(document.getElementById('restDays').value) || 3;
+  const offset = parseInt(document.getElementById('offset').value) || 0;
+
+  document.getElementById('headerYear').textContent = `Takvimi ${year}`;
+  document.getElementById('headerSub').textContent = `Ocak — Aralık ${year} · ${workDays}+${restDays} Döngüsü`;
+
+  const schedule = computeSchedule(year, cycleStartDate, workDays, restDays, offset);
+
+  let totalWork = 0, totalRest = 0;
+  Object.values(schedule).forEach(v => v === 'work' ? totalWork++ : totalRest++);
+  document.getElementById('totalWork').textContent = totalWork;
+  document.getElementById('totalRest').textContent = totalRest;
+
+  const grid = document.getElementById('calendarGrid');
+  grid.innerHTML = '';
+
+  for (let month = 1; month <= 12; month++) {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const firstDow = (new Date(year, month - 1, 1).getDay() + 6) % 7; // Mon=0
+
+    let mWork = 0, mRest = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      schedule[dateKey(year, month, d)] === 'work' ? mWork++ : mRest++;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'month-card';
+    card.innerHTML = `
+      <div class="month-header">
+        <div class="month-name">${MONTHS_TR[month-1]} ${year}</div>
+        <div class="month-stats"><span class="w">✈ ${mWork}</span><span class="r">✦ ${mRest}</span></div>
+      </div>
+      <div class="cal-body">
+        <div class="day-headers">${DAYS_TR.map((d,i)=>`<div class="day-hdr${i>=5?' weekend':''}">${d}</div>`).join('')}</div>
+        <div class="days-grid" id="mg-${month}"></div>
+      </div>`;
+    grid.appendChild(card);
+
+    const daysEl = card.querySelector(`#mg-${month}`);
+
+    for (let e = 0; e < firstDow; e++) {
+      const emp = document.createElement('div'); emp.className = 'day-cell empty'; daysEl.appendChild(emp);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = dateKey(year, month, d);
+      const status = schedule[key];
+      const dow = new Date(year, month - 1, d).getDay();
+      const isWeekend = dow === 0 || dow === 6;
+      const isOverride = !!overrides[key];
+
+      const cell = document.createElement('div');
+      cell.className = `day-cell ${status}${isWeekend ? ' weekend' : ''}${isOverride ? ' override' : ''}`;
+      cell.dataset.tip = `${String(d).padStart(2,'0')}/${String(month).padStart(2,'0')}/${year} · ${status === 'work' ? '✈ Uçuş' : '✦ Dinlenme'}`;
+      cell.innerHTML = `<div class="day-num">${d}</div><div class="day-icon">${status === 'work' ? '✈' : '✦'}</div>`;
+
+      cell.addEventListener('click', () => {
+        if (overrides[key]) delete overrides[key];
+        else overrides[key] = status === 'work' ? 'rest' : 'work';
+        renderOverrideList();
+        render();
+      });
+      daysEl.appendChild(cell);
+    }
+  }
+}
+
+function addOverride() {
+  const str = document.getElementById('overrideDate').value;
+  if (!str) { alert('Lütfen bir tarih seçin.'); return; }
+  const type = document.getElementById('overrideType').value;
+  const [y, m, d] = str.split('-').map(Number);
+  overrides[dateKey(y, m, d)] = type;
+  renderOverrideList();
+  render();
+}
+
+function removeOverride(key) { delete overrides[key]; renderOverrideList(); render(); }
+
+function renderOverrideList() {
+  const list = document.getElementById('overrideList');
+  list.innerHTML = '';
+  Object.entries(overrides).sort().forEach(([key, val]) => {
+    const [y, m, d] = key.split('-');
+    const tag = document.createElement('div');
+    tag.className = `override-tag ${val}`;
+    tag.innerHTML = `${d}/${m}/${y}: ${val === 'work' ? '✈ Uçuş' : '✦ Dinlenme'} <button onclick="removeOverride('${key}')">×</button>`;
+    list.appendChild(tag);
+  });
+}
+
+function resetAll() {
+  document.getElementById('cycleStart').value = '2026-01-01';
+  document.getElementById('calYear').value = '2026';
+  document.getElementById('workDays').value = '6';
+  document.getElementById('restDays').value = '3';
+  document.getElementById('offset').value = '0';
+  overrides = {};
+  renderOverrideList();
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
